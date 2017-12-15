@@ -20,21 +20,24 @@ class BankAccount {
   def balance = accountBalance
 }
 
-// sample of broken actor where multiple messages being processed simultaneously
-// cause invalid results.
+// An example of a broken actor where multiple messages being
+//    processed simultaneously causes invalid results.
 
-//class ChaosActor extends Actor {
-//  import scala.concurrent.future
-//  private val bankAccount = new BankAccount()
-//
-//  def receive = {
-//    case Deposit(value) =>
-//      future {
-//        bankAccount.incrementBalance(value)
-//      }
-//    case DisplayBalance => println(s"Final balance is: ${bankAccount.balance}")
-//  }
-//}
+class ChaosActor extends Actor {
+  import scala.concurrent.future
+  private val bankAccount = new BankAccount()
+
+  def receive = {
+    case Deposit(value) =>
+      future {
+        bankAccount.incrementBalance(value)
+      }
+    case DisplayBalance => println(s"Final balance is: ${bankAccount.balance}")
+  }
+}
+
+// An example of an ordered actor where multiple messages being
+//    processed in order does not cause invalid results.
 
 class OrderedActor extends Actor with Stash with ActorLogging {
   import scala.concurrent.future
@@ -47,15 +50,13 @@ class OrderedActor extends Actor with Stash with ActorLogging {
         bankAccount.incrementBalance(value)
       }.onComplete{
         case Failure(e) =>
-          log.error(e, "An error has occured")
+          log.error(e, "An error has occurred")
           self ! ResumeMessageProcessing
         case Success(v) =>
           self ! ResumeMessageProcessing
-
       }
     case DisplayBalance => println(s"Final balance is: ${bankAccount.balance}")
   }
-
 
   def waiting: Receive = {
     case ResumeMessageProcessing =>
@@ -66,7 +67,7 @@ class OrderedActor extends Actor with Stash with ActorLogging {
   }
 }
 
-object Foo extends App {
+object DepositOrderTest extends App {
   override def main(args: Array[String]) {
 
     val config = ConfigFactory.parseString("""
@@ -80,7 +81,24 @@ object Foo extends App {
 
     implicit val actorSystem = ActorSystem("OrderedActorSystem", ConfigFactory.load(config))
 
-    val actor = actorSystem.actorOf(Props(new OrderedActor()))
+    val actor = {
+      if (args.length == 0) {
+        println("Using Default: OrderedActor")
+        actorSystem.actorOf(Props(new OrderedActor()))
+      } else {
+        args(0) match {
+        case "ChaosActor" =>
+          println("Using ChaosActor")
+          actorSystem.actorOf(Props(new ChaosActor()))
+        case "OrderedActor" =>
+          println("Using OrderedActor")
+          actorSystem.actorOf(Props(new OrderedActor()))
+        case _ =>
+          println("Using Default: OrderedActor")
+          actorSystem.actorOf(Props(new OrderedActor()))
+        }
+      }
+    }
 
     (0 until 30).foreach(cnt => actor ! Deposit(50))
     Thread.sleep(10000)
@@ -88,6 +106,3 @@ object Foo extends App {
     actorSystem.shutdown()
   }
 }
-
-
-
