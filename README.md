@@ -1,4 +1,7 @@
 # ordered-actor
+
+[![Known Vulnerabilities](https://snyk.io/test/github/mramshaw/ordered-actor/badge.svg?style=plastic&targetFile=build.sbt)](https://snyk.io/test/github/mramshaw/ordered-actor?style=plastic&targetFile=build.sbt)
+
 An example of how to ensure ordered message processing with AKKA actors
 
 ## Motivation
